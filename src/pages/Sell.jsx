@@ -1,22 +1,45 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Upload, ArrowLeft, CheckCircle, Wallet } from 'lucide-react'
-import { useWallet } from '../hooks/useWallet'
+import { useWallet } from '../hooks/WalletContext'
 import { useAuctions } from '../hooks/useAuctions'
 import { listItem, uploadImage } from '../lib/solana'
 
 const CATEGORIES = ['Текстил', 'Антиквитети', 'Занаети', 'Фотографија', 'Народна носија', 'Друго']
-const DURATIONS = [
-  { label: '24 часа', hours: 24 },
-  { label: '3 дена',  hours: 72 },
-  { label: '7 дена',  hours: 168 },
+
+const QUICK_DURATIONS = [
+  { label: '30 мин', minutes: 30 },
+  { label: '1 час',  minutes: 60 },
+  { label: '3 часа', minutes: 180 },
+  { label: '1 ден',  minutes: 1440 },
+  { label: '3 дена', minutes: 4320 },
+  { label: '7 дена', minutes: 10080 },
 ]
 
-const EMPTY = { title: '', description: '', category: 'Текстил', location: '', startingBid: '', duration: 72, image: null, imagePreview: null }
+// Минималниот датум е сега (не може во минатото)
+function nowDatetimeLocal() {
+  const now = new Date()
+  now.setSeconds(0, 0)
+  return now.toISOString().slice(0, 16)
+}
+
+// Пример датум: утре во 12:00
+function defaultStartDate() {
+  const d = new Date()
+  d.setDate(d.getDate() + 1)
+  d.setHours(12, 0, 0, 0)
+  return d.toISOString().slice(0, 16)
+}
+
+const EMPTY = {
+  title: '', description: '', categories: [], location: '',
+  startingBid: '', startDate: defaultStartDate(),
+  durationMinutes: '', image: null, imagePreview: null,
+}
 
 export default function Sell() {
   const { connected, connect } = useWallet()
-  const { addAuction } = useAuctions()
+  const { addAuctions } = useAuctions()
   const navigate = useNavigate()
 
   const [form, setForm] = useState(EMPTY)
@@ -27,6 +50,14 @@ export default function Sell() {
   const set = (key, val) => {
     setForm(f => ({ ...f, [key]: val }))
     setErrors(e => ({ ...e, [key]: undefined }))
+  }
+
+  function toggleCategory(cat) {
+    setForm(f => {
+      const already = f.categories.includes(cat)
+      return { ...f, categories: already ? f.categories.filter(c => c !== cat) : [...f.categories, cat] }
+    })
+    setErrors(e => ({ ...e, categories: undefined }))
   }
 
   function handleImage(e) {
@@ -40,12 +71,35 @@ export default function Sell() {
 
   function validate() {
     const errs = {}
-    if (!form.title.trim())        errs.title       = 'Внеси наслов'
-    if (!form.description.trim())  errs.description = 'Внеси опис'
-    if (!form.location.trim())     errs.location    = 'Внеси локација'
-    if (!form.startingBid || Number(form.startingBid) < 1) errs.startingBid = 'Минимум 1 USDC'
-    if (!form.image)               errs.image       = 'Прикачи слика'
+    if (!form.title.trim())       errs.title       = 'Внеси наслов'
+    if (!form.description.trim()) errs.description = 'Внеси опис'
+    if (!form.location.trim())    errs.location    = 'Внеси локација'
+    if (form.startingBid === '' || Number(form.startingBid) < 0)
+                                  errs.startingBid = 'Внеси валидна цена (мин. 0)'
+    if (!form.image)              errs.image       = 'Прикачи слика'
+    if (form.categories.length === 0) errs.categories = 'Избери барем една категорија'
+    if (!form.startDate)          errs.startDate   = 'Избери датум и час на старт'
+    else if (new Date(form.startDate) <= new Date()) errs.startDate = 'Датумот мора да е во иднина'
+    if (!form.durationMinutes || Number(form.durationMinutes) < 1)
+                                  errs.durationMinutes = 'Внеси времетраење (мин. 1 минута)'
     return errs
+  }
+
+  // Пресметај кога завршува аукцијата
+  function calcEndsAt() {
+    const start = new Date(form.startDate).getTime()
+    return start + Number(form.durationMinutes) * 60_000
+  }
+
+  // Прикажи читлив summary на времетраењето
+  function durationLabel(mins) {
+    const m = Number(mins)
+    if (!m) return '—'
+    if (m < 60) return `${m} мин`
+    const h = Math.floor(m / 60), rem = m % 60
+    if (h < 24) return rem ? `${h}ч ${rem}мин` : `${h} час${h > 1 ? 'а' : ''}`
+    const d = Math.floor(h / 24), rh = h % 24
+    return rh ? `${d} ден ${rh}ч` : `${d} ден${d > 1 ? 'а' : ''}`
   }
 
   async function handleSubmit(e) {
@@ -58,15 +112,18 @@ export default function Sell() {
       const imageUri = await uploadImage(form.image)
       const result = await listItem({
         title: form.title, description: form.description,
-        imageUri, startingBid: Number(form.startingBid), durationHours: form.duration,
+        imageUri, startingBid: Number(form.startingBid),
+        durationHours: Number(form.durationMinutes) / 60,
       })
-      addAuction({
+      addAuctions({
         id: result.auctionId, title: form.title, description: form.description,
         seller: 'Ти', sellerWallet: '????...????',
         image: imageUri,
         currentBid: Number(form.startingBid), startingBid: Number(form.startingBid),
-        currency: 'USDC', endsAt: Date.now() + form.duration * 3_600_000,
-        bids: 0, category: form.category, location: form.location, nftMinted: false,
+        currency: 'USDC',
+        startsAt: new Date(form.startDate).getTime(),
+        endsAt: calcEndsAt(),
+        bids: 0, category: form.categories, location: form.location, nftMinted: false,
       })
       setDone(true)
     } catch (err) {
@@ -83,15 +140,13 @@ export default function Sell() {
       <div>
         <h1 className="font-display text-3xl font-medium mb-2">Предметот е листан!</h1>
         <p className="text-sm text-ink-soft leading-relaxed">
-          Аукцијата е активна на Solana Devnet.<br />
-          NFT ќе биде мintиран за победникот.
+          Аукцијата започнува на {new Date(form.startDate).toLocaleString('mk-MK')}.<br />
+          NFT ќе биде минтиран за победникот.
         </p>
       </div>
       <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs mt-2">
         <button onClick={() => navigate('/')} className="btn-primary">Кон аукции</button>
-        <button onClick={() => { setDone(false); setForm(EMPTY) }} className="btn-secondary">
-          Листај нов
-        </button>
+        <button onClick={() => { setDone(false); setForm(EMPTY) }} className="btn-secondary">Листај нов</button>
       </div>
     </div>
   )
@@ -101,8 +156,7 @@ export default function Sell() {
     <main className="max-w-2xl mx-auto px-4 sm:px-6 py-8 pb-20">
 
       <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink transition-colors mb-6">
-        <ArrowLeft size={15} />
-        Назад
+        <ArrowLeft size={15} /> Назад
       </Link>
 
       <div className="mb-8">
@@ -117,8 +171,7 @@ export default function Sell() {
         <div className="flex flex-col items-center gap-4 py-16 border-2 border-dashed border-parchment-3 rounded-2xl text-center px-6">
           <p className="text-ink-soft text-sm">За да листаш предмет, поврзи го Phantom паричникот.</p>
           <button onClick={connect} className="btn-primary max-w-xs">
-            <Wallet size={15} />
-            Поврзи паричник
+            <Wallet size={15} /> Поврзи паричник
           </button>
         </div>
       ) : (
@@ -128,12 +181,14 @@ export default function Sell() {
           <div>
             <label className="field-label">Слика *</label>
             <label className={`flex items-center justify-center border-2 border-dashed rounded-2xl
-                               min-h-48 cursor-pointer transition-colors overflow-hidden relative
+                               cursor-pointer transition-colors overflow-hidden relative w-full
                                ${errors.image ? 'border-riznica-red' : 'border-parchment-3 hover:border-ink-soft hover:bg-parchment-2'}`}>
               {form.imagePreview ? (
-                <img src={form.imagePreview} alt="preview" className="w-full h-56 object-cover" />
+                <div className="w-full aspect-video bg-parchment-2 flex items-center justify-center">
+                  <img src={form.imagePreview} alt="preview" className="w-full h-full object-contain" />
+                </div>
               ) : (
-                <div className="flex flex-col items-center gap-2 text-ink-muted py-8">
+                <div className="flex flex-col items-center gap-2 text-ink-muted py-12">
                   <Upload size={28} strokeWidth={1.5} />
                   <span className="text-sm">Кликни или повлечи слика</span>
                   <span className="text-xs">JPG, PNG, WEBP · max 10MB</span>
@@ -147,95 +202,122 @@ export default function Sell() {
           {/* Title */}
           <div>
             <label className="field-label" htmlFor="title">Наслов *</label>
-            <input
-              id="title" type="text"
-              placeholder="пр. Бабина шарена торба"
-              value={form.title}
-              onChange={e => set('title', e.target.value)}
-              className={`field-input ${errors.title ? 'field-error' : ''}`}
-            />
+            <input id="title" type="text" placeholder="пр. Бабина шарена торба"
+              value={form.title} onChange={e => set('title', e.target.value)}
+              className={`field-input ${errors.title ? 'field-error' : ''}`} />
             {errors.title && <p className="error-msg">{errors.title}</p>}
           </div>
 
           {/* Description */}
           <div>
             <label className="field-label" htmlFor="desc">Опис *</label>
-            <textarea
-              id="desc"
+            <textarea id="desc"
               placeholder="Раскажи ја приказната — откаде потекнува, кој го направил, зошто е посебен…"
-              value={form.description}
-              onChange={e => set('description', e.target.value)}
-              rows={5}
-              className={`field-input resize-none ${errors.description ? 'field-error' : ''}`}
-            />
+              value={form.description} onChange={e => set('description', e.target.value)}
+              rows={5} className={`field-input resize-none ${errors.description ? 'field-error' : ''}`} />
             {errors.description && <p className="error-msg">{errors.description}</p>}
           </div>
 
-          {/* Category + Location */}
+          {/* Categories chips + Location */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="field-label" htmlFor="cat">Категорија</label>
-              <select id="cat" value={form.category} onChange={e => set('category', e.target.value)} className="field-input">
-                {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-              </select>
+              <label className="field-label">Категорија</label>
+              <div className="flex flex-wrap gap-2">
+                {CATEGORIES.map(c => {
+                  const selected = form.categories.includes(c)
+                  return (
+                    <button key={c} type="button" onClick={() => toggleCategory(c)}
+                      className={`px-3 py-1.5 text-xs rounded-full border transition-all
+                        ${selected
+                          ? 'bg-ink text-parchment border-ink'
+                          : 'bg-parchment-2 text-ink-soft border-parchment-3 hover:bg-parchment-3 hover:text-ink'}`}>
+                      {selected ? '✓ ' : ''}{c}
+                    </button>
+                  )
+                })}
+              </div>
+              {errors.categories && <p className="error-msg mt-1">{errors.categories}</p>}
             </div>
             <div>
               <label className="field-label" htmlFor="loc">Локација *</label>
-              <input
-                id="loc" type="text" placeholder="пр. Скопје"
-                value={form.location}
-                onChange={e => set('location', e.target.value)}
-                className={`field-input ${errors.location ? 'field-error' : ''}`}
-              />
+              <input id="loc" type="text" placeholder="пр. Скопје"
+                value={form.location} onChange={e => set('location', e.target.value)}
+                className={`field-input ${errors.location ? 'field-error' : ''}`} />
               {errors.location && <p className="error-msg">{errors.location}</p>}
             </div>
           </div>
 
-          {/* Starting bid + Duration */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Starting bid */}
+          <div>
+            <label className="field-label" htmlFor="bid">Почетна цена (USDC)</label>
+            <p className="text-xs text-ink-muted mb-1.5">Може да биде 0 USDC — секоја понуда е добредојдена</p>
+            <div className="relative max-w-xs">
+              <input id="bid" type="number" min="0" step="0.01" placeholder="0"
+                value={form.startingBid} onChange={e => set('startingBid', e.target.value)}
+                className={`field-input pr-16 ${errors.startingBid ? 'field-error' : ''}`} />
+              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs text-ink-muted pointer-events-none">USDC</span>
+            </div>
+            {errors.startingBid && <p className="error-msg">{errors.startingBid}</p>}
+          </div>
+
+          {/* Start date + Duration */}
+          <div className="flex flex-col gap-4">
+
+            {/* Start datetime */}
             <div>
-              <label className="field-label" htmlFor="bid">Почетна цена (USDC) *</label>
-              <div className="relative">
-                <input
-                  id="bid" type="number" min="1" placeholder="0"
-                  value={form.startingBid}
-                  onChange={e => set('startingBid', e.target.value)}
-                  className={`field-input pr-16 ${errors.startingBid ? 'field-error' : ''}`}
-                />
-                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs text-ink-muted pointer-events-none">
-                  USDC
-                </span>
-              </div>
-              {errors.startingBid && <p className="error-msg">{errors.startingBid}</p>}
+              <label className="field-label" htmlFor="startDate">Датум и час на почеток *</label>
+              <p className="text-xs text-ink-muted mb-1.5">Аукцијата ќе биде најавена и ќе почне во избраното време</p>
+              <input id="startDate" type="datetime-local"
+                min={nowDatetimeLocal()}
+                value={form.startDate}
+                onChange={e => set('startDate', e.target.value)}
+                className={`field-input max-w-xs ${errors.startDate ? 'field-error' : ''}`} />
+              {errors.startDate && <p className="error-msg">{errors.startDate}</p>}
             </div>
 
+            {/* Duration in minutes */}
             <div>
-              <label className="field-label">Траење</label>
-              <div className="flex gap-2">
-                {DURATIONS.map(d => (
-                  <button
-                    key={d.hours} type="button"
-                    onClick={() => set('duration', d.hours)}
-                    className={`flex-1 py-3 text-xs rounded-xl border transition-all
-                      ${form.duration === d.hours
+              <label className="field-label" htmlFor="dur">Времетраење *</label>
+              <p className="text-xs text-ink-muted mb-1.5">Избери брзо или внеси рачно во минути</p>
+
+              {/* Quick buttons */}
+              <div className="flex flex-wrap gap-2 mb-3">
+                {QUICK_DURATIONS.map(d => (
+                  <button key={d.minutes} type="button"
+                    onClick={() => set('durationMinutes', String(d.minutes))}
+                    className={`px-3 py-1.5 text-xs rounded-full border transition-all
+                      ${Number(form.durationMinutes) === d.minutes
                         ? 'bg-ink text-parchment border-ink'
-                        : 'bg-parchment-2 text-ink-soft border-parchment-3 hover:bg-parchment-3'
-                      }`}
-                  >
+                        : 'bg-parchment-2 text-ink-soft border-parchment-3 hover:bg-parchment-3 hover:text-ink'}`}>
                     {d.label}
                   </button>
                 ))}
               </div>
+
+              {/* Manual input */}
+              <div className="relative max-w-xs">
+                <input id="dur" type="number" min="1" placeholder="пр. 90"
+                  value={form.durationMinutes}
+                  onChange={e => set('durationMinutes', e.target.value)}
+                  className={`field-input pr-16 ${errors.durationMinutes ? 'field-error' : ''}`} />
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs text-ink-muted pointer-events-none">мин</span>
+              </div>
+              {errors.durationMinutes && <p className="error-msg">{errors.durationMinutes}</p>}
             </div>
           </div>
 
           {/* Summary */}
           <div className="bg-parchment-2 rounded-xl divide-y divide-parchment-3 text-sm">
             {[
-              ['Почетна цена',       `${form.startingBid || '—'} USDC`],
-              ['Провизија',          '0% (хакатон)'],
-              ['NFT Royalties',      '5% на секоја препродажба'],
-              ['Мрежа',              'Solana Devnet'],
+              ['Почетна цена',    `${form.startingBid !== '' ? form.startingBid : '—'} USDC`],
+              ['Почеток',         form.startDate ? new Date(form.startDate).toLocaleString('mk-MK') : '—'],
+              ['Времетраење',     durationLabel(form.durationMinutes)],
+              ['Завршува',        form.startDate && form.durationMinutes
+                                    ? new Date(calcEndsAt()).toLocaleString('mk-MK')
+                                    : '—'],
+              ['Провизија',       '5% '],
+              ['NFT Royalties',   '5% на секоја препродажба'],
+              ['Мрежа',           'Solana Devnet'],
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between px-4 py-3 text-ink-soft">
                 <span>{k}</span>
@@ -247,6 +329,7 @@ export default function Sell() {
           <button type="submit" disabled={loading} className="btn-primary">
             {loading ? 'Објавување…' : 'Листај на аукција'}
           </button>
+
         </form>
       )}
     </main>

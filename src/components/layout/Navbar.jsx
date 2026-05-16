@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Wallet, Plus, Archive, Menu, X } from 'lucide-react'
-import { useWallet } from '../../hooks/useWallet'
+import { useWallet } from '../../hooks/WalletContext'
 
 export default function Navbar() {
   const { connected, shortKey, connect, disconnect, connecting } = useWallet()
@@ -33,7 +33,7 @@ export default function Navbar() {
         {/* Logo */}
         <Link to="/" className="flex items-baseline gap-2 flex-shrink-0">
           <span className="font-display text-2xl font-semibold tracking-tight text-ink">Ризница</span>
-          <span className="devnet-badge">devnet</span>
+          
         </Link>
 
         {/* Desktop nav */}
