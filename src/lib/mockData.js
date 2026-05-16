@@ -78,3 +78,4 @@ export const SORT_OPTIONS = [
 ]
 
 export const LOCATIONS = ['Скопје','Охрид','Битола','Крушево','Тетово','Прилеп','Струга','Штип','Велес','Куманово','Друго']
+export const CATEGORIES = ALL_CATEGORIES
