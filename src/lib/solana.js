@@ -1,13 +1,19 @@
 import { Program, AnchorProvider, BN, web3 } from '@coral-xyz/anchor'
 import { Connection, clusterApiUrl, PublicKey } from '@solana/web3.js'
-import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { IDL } from './idl.js'
+import {
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountInstruction,
+  TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+} from '@solana/spl-token'
+import { Transaction } from '@solana/web3.js'
 
 const { SystemProgram } = web3
 
 export const PROGRAM_ID = new PublicKey('9qxFLefPHgt1CNBkGRR3SXSno51hLgzEEvoysxUe5Uk5')
-export const CONNECTION  = new Connection(clusterApiUrl('devnet'), 'confirmed')
-export const USDC_MINT   = new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU')
+export const CONNECTION = new Connection(clusterApiUrl('devnet'), 'confirmed')
+export const USDC_MINT = new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU')
 
 // Конвертирај секој PublicKey преку toString() за да избегнеш верзиски конфликт
 function pk(key) {
@@ -18,8 +24,8 @@ function pk(key) {
 function makeAnchorWallet(wallet) {
   if (!wallet?.publicKey) throw new Error('Wallet not connected')
   return {
-    publicKey:           pk(wallet.publicKey),
-    signTransaction:     async (tx) => wallet.signTransaction(tx),
+    publicKey: pk(wallet.publicKey),
+    signTransaction: async (tx) => wallet.signTransaction(tx),
     signAllTransactions: async (txs) => wallet.signAllTransactions
       ? wallet.signAllTransactions(txs)
       : Promise.all(txs.map(tx => wallet.signTransaction(tx))),
@@ -36,8 +42,8 @@ function getProgram(anchorWallet) {
 
 function getReadonlyProgram() {
   const dummy = {
-    publicKey:           new PublicKey('11111111111111111111111111111111'),
-    signTransaction:     async t => t,
+    publicKey: new PublicKey('11111111111111111111111111111111'),
+    signTransaction: async t => t,
     signAllTransactions: async ts => ts,
   }
   return new Program(IDL, new AnchorProvider(CONNECTION, dummy, { commitment: 'confirmed' }))
@@ -53,8 +59,8 @@ export function getAuctionPDA(sellerPubkey, title) {
 
 export async function listItem({ title, description, imageUri, startingBid, durationHours, wallet }) {
   const anchorWallet = makeAnchorWallet(wallet)
-  const program      = getProgram(anchorWallet)
-  const auctionPDA   = getAuctionPDA(anchorWallet.publicKey, title)
+  const program = getProgram(anchorWallet)
+  const auctionPDA = getAuctionPDA(anchorWallet.publicKey, title)
 
   console.log('listItem → PDA:', auctionPDA.toString())
 
@@ -67,8 +73,8 @@ export async function listItem({ title, description, imageUri, startingBid, dura
       new BN(durationHours * 3600),
     )
     .accounts({
-      auction:       auctionPDA,
-      seller:        anchorWallet.publicKey,
+      auction: auctionPDA,
+      seller: anchorWallet.publicKey,
       systemProgram: SystemProgram.programId,
     })
     .rpc()
@@ -88,6 +94,38 @@ export async function placeBid({ auctionId, amount, prevBidderWallet, wallet }) 
     ? await getAssociatedTokenAddress(USDC_MINT, pk(prevBidderWallet))
     : bidderTokenAccount
 
+  // Провери кои accounts недостасуваат
+  const [bidderAtaInfo, escrowAtaInfo] = await Promise.all([
+    CONNECTION.getAccountInfo(bidderTokenAccount),
+    CONNECTION.getAccountInfo(escrowTokenAccount),
+  ])
+
+  const setupIxs = []
+
+  if (!bidderAtaInfo) {
+    setupIxs.push(createAssociatedTokenAccountInstruction(
+      bidder, bidderTokenAccount, bidder, USDC_MINT,
+      TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
+    ))
+  }
+
+  if (!escrowAtaInfo) {
+    setupIxs.push(createAssociatedTokenAccountInstruction(
+      bidder, escrowTokenAccount, auctionPubkey, USDC_MINT,
+      TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
+    ))
+  }
+
+  // Ако треба да се креираат accounts — испрати setup трансакција прво
+  if (setupIxs.length > 0) {
+    const setupTx = new Transaction().add(...setupIxs)
+    setupTx.feePayer        = bidder
+    setupTx.recentBlockhash = (await CONNECTION.getLatestBlockhash()).blockhash
+    const signed            = await wallet.signTransaction(setupTx)
+    const sig               = await CONNECTION.sendRawTransaction(signed.serialize())
+    await CONNECTION.confirmTransaction(sig, 'confirmed')
+  }
+
   const tx = await program.methods
     .placeBid(new BN(Math.round(amount * 1_000_000)))
     .accounts({
@@ -103,47 +141,26 @@ export async function placeBid({ auctionId, amount, prevBidderWallet, wallet }) 
   return { signature: tx }
 }
 
-export async function endAuction({ auctionId, sellerWallet, wallet }) {
-  const anchorWallet       = makeAnchorWallet(wallet)
-  const program            = getProgram(anchorWallet)
-  const auctionPubkey      = pk(auctionId)
-  const sellerPubkey       = pk(sellerWallet)
-  const escrowTokenAccount = await getAssociatedTokenAddress(USDC_MINT, auctionPubkey, true)
-  const sellerTokenAccount = await getAssociatedTokenAddress(USDC_MINT, sellerPubkey)
-
-  const tx = await program.methods
-    .endAuction()
-    .accounts({
-      auction:            auctionPubkey,
-      escrowTokenAccount,
-      sellerTokenAccount,
-      tokenProgram:       TOKEN_PROGRAM_ID,
-    })
-    .rpc()
-
-  return { signature: tx }
-}
-
 export async function fetchAuctions() {
   try {
-    const program  = getReadonlyProgram()
+    const program = getReadonlyProgram()
     const accounts = await program.account.auction.all()
-    return accounts.map(a => ({
-      id:            a.publicKey.toString(),
-      title:         a.account.title,
-      description:   a.account.description,
-      image:         a.account.imageUri,
-      seller:        shortenAddress(a.account.seller.toString()),
-      sellerWallet:  a.account.seller.toString(),
-      currentBid:    a.account.currentBid.toNumber() / 1_000_000,
-      startingBid:   a.account.startingBid.toNumber() / 1_000_000,
-      currency:      'USDC',
-      endsAt:        a.account.endsAt.toNumber() * 1000,
-      bids:          0,
-      categories:    ['Антиквитети'],
-      location:      'Македонија',
-      ended:         a.account.ended,
-      nftMinted:     a.account.nftMinted,
+    return accounts.filter(a => !HIDDEN_AUCTIONS.has(a.publicKey.toString())).map(a => ({
+      id: a.publicKey.toString(),
+      title: a.account.title,
+      description: a.account.description,
+      image: a.account.imageUri,
+      seller: shortenAddress(a.account.seller.toString()),
+      sellerWallet: a.account.seller.toString(),
+      currentBid: a.account.currentBid.toNumber() / 1_000_000,
+      startingBid: a.account.startingBid.toNumber() / 1_000_000,
+      currency: 'USDC',
+      endsAt: a.account.endsAt.toNumber() * 1000,
+      bids: 0,
+      categories: ['Антиквитети'],
+      location: 'Македонија',
+      ended: a.account.ended,
+      nftMinted: a.account.nftMinted,
       currentBidder: a.account.currentBidder.toString() !== '11111111111111111111111111111111'
         ? a.account.currentBidder.toString()
         : null,
@@ -154,7 +171,7 @@ export async function fetchAuctions() {
   }
 }
 
-const CLOUD_NAME    = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
+const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
 
 export async function uploadImage(file) {
@@ -180,3 +197,31 @@ export function shortenAddress(addr) {
 export function explorerUrl(signature) {
   return `https://explorer.solana.com/tx/${signature}?cluster=devnet`
 }
+export async function endAuction({ auctionId, sellerWallet, wallet }) {
+  const anchorWallet = makeAnchorWallet(wallet)
+  const program = getProgram(anchorWallet)
+  const auctionPubkey = pk(auctionId)
+  const sellerPubkey = pk(sellerWallet)
+  const escrowTokenAccount = await getAssociatedTokenAddress(USDC_MINT, auctionPubkey, true)
+  const sellerTokenAccount = await getAssociatedTokenAddress(USDC_MINT, sellerPubkey)
+
+  const tx = await program.methods
+    .endAuction()
+    .accounts({
+      auction: auctionPubkey,
+      escrowTokenAccount,
+      sellerTokenAccount,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    })
+    .rpc()
+
+  return { signature: tx }
+}
+
+const HIDDEN_AUCTIONS = new Set([
+  '3QFUAEWvSnbjzwhspS9U74t1PhQ6HFJ1SEeZffDKJRK8',
+  'BMLgnHQSv42zR4DDsizAecJ4MFEnzNky97icRp2iMbhL',
+  'Em9Nw6tr8zECAsNAtVJwXpLg5DfapztbrJxTnzoGAuG7',
+  '9FjjXwqJyQ71QrGjqEJXwkpwrASbtQ9eBxiaZjZLQqE6',
+  'A12t4FzUFRFRMy4AjLtrd291isaBQNoD1pBNEwkFyv9N'
+])

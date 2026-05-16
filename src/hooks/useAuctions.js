@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useWallet } from '@solana/wallet-adapter-react'
 import { fetchAuctions, placeBid } from '../lib/solana'
 
 export function useAuctions() {
-  const wallet = useWallet()
   const [auctions, setAuctions]       = useState([])
   const [loading, setLoading]         = useState(true)
   const [chainLoaded, setChainLoaded] = useState(false)
@@ -28,14 +26,27 @@ export function useAuctions() {
   }
 
   const bid = useCallback(async (auctionId, amount) => {
-    if (!wallet?.publicKey) return { success: false, error: 'Паричникот не е поврзан' }
+    // Земи Phantom директно
+    const phantom = window.solana?.isPhantom ? window.solana : null
+    if (!phantom) return { success: false, error: 'Инсталирај го Phantom паричникот' }
+    if (!phantom.isConnected) {
+      try { await phantom.connect() }
+      catch { return { success: false, error: 'Паричникот не е поврзан' } }
+    }
+
+    const walletAdapter = {
+      publicKey:           phantom.publicKey,
+      signTransaction:     (tx) => phantom.signTransaction(tx),
+      signAllTransactions: (txs) => phantom.signAllTransactions(txs),
+    }
+
     try {
       const auction = auctions.find(a => a.id === auctionId)
       const result  = await placeBid({
         auctionId,
         amount,
         prevBidderWallet: auction?.currentBidder || null,
-        wallet,
+        wallet:           walletAdapter,
       })
       setAuctions(prev => prev.map(a =>
         a.id === auctionId ? { ...a, currentBid: amount, bids: a.bids + 1 } : a
@@ -45,7 +56,7 @@ export function useAuctions() {
     } catch (e) {
       return { success: false, error: e.message }
     }
-  }, [auctions, wallet])
+  }, [auctions])
 
   const addAuction = useCallback((auction) => {
     setAuctions(prev => [auction, ...prev])

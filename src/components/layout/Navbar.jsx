@@ -44,7 +44,7 @@ export default function Navbar() {
         {/* Nav links */}
         <nav className="hidden sm:flex items-center gap-1">
           {navLink('/', 'Аукции', Archive)}
-          {authenticated && navLink('/sell', 'Листај', Plus)}
+          {authenticated && navLink('/sell', 'Постави продукт', Plus)}
           {authenticated && navLink('/my-auctions', 'Мои аукции', User)}
         </nav>
 

@@ -111,6 +111,7 @@ export default function Sell() {
         description:   form.description,
         seller:        user?.google?.name || shortenAddress(pubkey),
         sellerWallet:  pubkey,
+        sellerEmail:   user?.email?.address || user?.google?.email || '',
         image:         imageUri,
         currentBid:    Number(form.startingBid),
         startingBid:   Number(form.startingBid),
@@ -178,10 +179,10 @@ export default function Sell() {
       </Link>
 
       <div className="mb-8">
-        <h1 className="font-display text-4xl font-medium mb-3">Листај предмет</h1>
+        <h1 className="font-display text-4xl font-medium mb-3">Постави продукт</h1>
         <p className="text-base font-light text-ink-soft leading-relaxed">
-          Твојот предмет ќе биде зачуван засекогаш.
-          Купувачите понудуваат, а парите се чуваат безбедно до крај на аукцијата.
+          Твојот продукт ќе биде зачуван засекогаш.
+          Купувачите нудат, а парите се чуваат безбедно до крај на аукцијата.
         </p>
         {!phantom && (
           <div className="mt-3 flex items-center gap-2 text-sm text-riznica-red bg-red-50 border border-riznica-red/20 rounded-xl px-4 py-3">
@@ -303,7 +304,7 @@ export default function Sell() {
           {[
             ['Почетна цена',         `${form.startingBid || '—'} $`],
             ['Категории',            form.categories.length > 0 ? form.categories.join(', ') : '—'],
-            ['Провизија',            '0% (хакатон)'],
+            ['Провизија',            '2%'],
             ['Дигитален сертификат', '5% на секоја препродажба'],
             ['Зачувано на',          'Solana блокчејн'],
           ].map(([k, v]) => (
@@ -327,7 +328,7 @@ export default function Sell() {
               <span className="w-4 h-4 border-2 border-parchment/30 border-t-parchment rounded-full animate-spin" />
               Објавување…
             </span>
-          ) : 'Листај на аукција'}
+          ) : 'Објави'}
         </button>
 
       </form>

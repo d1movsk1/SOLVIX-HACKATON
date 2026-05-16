@@ -1,20 +1,20 @@
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Plus } from 'lucide-react'
-import { usePrivy, useWallets } from '@privy-io/react-auth'
+import { usePrivy } from '@privy-io/react-auth'
 import AuctionCard from '../components/ui/AuctionCard'
 import { useAuctions } from '../hooks/useAuctions'
 
 export default function MyAuctions() {
   const { auctions } = useAuctions()
   const { user } = usePrivy()
-  const { wallets } = useWallets()
 
-  const solanaWallet = wallets.find(w => w.chainType === 'solana')
-  const myAddr = solanaWallet?.address || ''
+  // Земи ја адресата од Phantom директно
+  const myAddr = window.solana?.publicKey?.toString() || ''
+  const myName = user?.google?.name || user?.email?.address || ''
 
   const mine = auctions.filter(a =>
-    a.sellerWallet === myAddr ||
-    a.seller === myAddr ||
+    (myAddr && a.sellerWallet === myAddr) ||
+    (myName && a.seller === myName) ||
     a.seller === 'Ти'
   )
 
@@ -35,7 +35,7 @@ export default function MyAuctions() {
         <div className="flex flex-col items-center justify-center py-24 gap-4 text-center border-2 border-dashed border-parchment-3 rounded-2xl">
           <p className="text-ink-muted text-sm">Немаш креирано аукции.</p>
           <Link to="/sell" className="btn-primary max-w-xs">
-            <Plus size={15} /> Листај прв предмет
+            <Plus size={15} /> Додади продукт
           </Link>
         </div>
       )}

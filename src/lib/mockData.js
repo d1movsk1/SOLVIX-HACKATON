@@ -67,7 +67,7 @@ export const MOCK_AUCTIONS = [
   },
 ]
 
-export const ALL_CATEGORIES = ['Текстил', 'Антиквитети', 'Занаети', 'Фотографија', 'Народна носија', 'Друго']
+export const ALL_CATEGORIES = ['Монети','Текстил','Дрвени призводи', 'Антиквитети', 'Занаетчиски производи', 'Метални производи', 'Народна носија', 'Друго']
 
 export const SORT_OPTIONS = [
   { value: 'ending',   label: 'Завршуваат наскоро' },

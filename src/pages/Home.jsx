@@ -86,11 +86,11 @@ export default function Home() {
           <em className="italic text-gold">носи приказна.</em>
         </h1>
         <p className="text-base font-light text-ink-soft leading-relaxed max-w-sm">
-          Автентични рачно изработени предмети од Македонија.
-          Секоја продажба верифицирана со дигитален сертификат.
+          Автентични македонски производи со културна, сентиментална и трајна вредност. 
+          Секое парче носи приказна и традиција верифицирана со дигитален сертификат.
         </p>
         {chainLoaded && (
-          <p className="mt-3 text-sm text-riznica-green flex items-center gap-1.5">
+          <p className="mt-3 text-md text-riznica-green flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-riznica-green inline-block animate-pulse" />
             Live — вчитано од блокчејн
           </p>
