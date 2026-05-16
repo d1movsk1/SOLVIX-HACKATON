@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Upload, ArrowLeft, CheckCircle, Wallet } from 'lucide-react'
 import { useWallet } from '../hooks/WalletContext'
-import { useAuctions } from '../hooks/useAuctions'
+import { useAuctions } from '../hooks/AuctionsContext'
 import { listItem, uploadImage } from '../lib/solana'
 
 const CATEGORIES = ['Текстил', 'Антиквитети', 'Занаети', 'Фотографија', 'Народна носија', 'Друго']
@@ -39,7 +39,7 @@ const EMPTY = {
 
 export default function Sell() {
   const { connected, connect } = useWallet()
-  const { addAuctions } = useAuctions()
+  const { addAuction } = useAuctions()
   const navigate = useNavigate()
 
   const [form, setForm] = useState(EMPTY)
@@ -103,35 +103,39 @@ export default function Sell() {
   }
 
   async function handleSubmit(e) {
-    e.preventDefault()
-    const errs = validate()
-    if (Object.keys(errs).length) { setErrors(errs); return }
+  e.preventDefault()
+  const errs = validate()
+  if (Object.keys(errs).length) { setErrors(errs); return }
 
-    setLoading(true)
-    try {
-      const imageUri = await uploadImage(form.image)
-      const result = await listItem({
-        title: form.title, description: form.description,
-        imageUri, startingBid: Number(form.startingBid),
-        durationHours: Number(form.durationMinutes) / 60,
-      })
-      addAuctions({
-        id: result.auctionId, title: form.title, description: form.description,
-        seller: 'Ти', sellerWallet: '????...????',
-        image: imageUri,
-        currentBid: Number(form.startingBid), startingBid: Number(form.startingBid),
-        currency: 'USDC',
-        startsAt: new Date(form.startDate).getTime(),
-        endsAt: calcEndsAt(),
-        bids: 0, category: form.categories, location: form.location, nftMinted: false,
-      })
-      setDone(true)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
+  setLoading(true)
+  try {
+    // Користи ја локалната слика preview наместо uploadImage
+    const imageUri = form.imagePreview
+
+    addAuction({
+      id: Date.now().toString(),
+      title: form.title,
+      description: form.description,
+      seller: 'Ти',
+      sellerWallet: '????...????',
+      image: imageUri,
+      currentBid: Number(form.startingBid),
+      startingBid: Number(form.startingBid),
+      currency: 'USDC',
+      startsAt: new Date(form.startDate).getTime(),
+      endsAt: calcEndsAt(),
+      bids: 0,
+      category: form.categories,
+      location: form.location,
+      nftMinted: false,
+    })
+    setDone(true)
+  } catch (err) {
+    console.error(err)
+  } finally {
+    setLoading(false)
   }
+}
 
   /* ── Success screen ── */
   if (done) return (
@@ -264,16 +268,33 @@ export default function Sell() {
           <div className="flex flex-col gap-4">
 
             {/* Start datetime */}
-            <div>
-              <label className="field-label" htmlFor="startDate">Датум и час на почеток *</label>
-              <p className="text-xs text-ink-muted mb-1.5">Аукцијата ќе биде најавена и ќе почне во избраното време</p>
-              <input id="startDate" type="datetime-local"
-                min={nowDatetimeLocal()}
-                value={form.startDate}
-                onChange={e => set('startDate', e.target.value)}
-                className={`field-input max-w-xs ${errors.startDate ? 'field-error' : ''}`} />
-              {errors.startDate && <p className="error-msg">{errors.startDate}</p>}
-            </div>
+            {/* Start date + time — ЗАМЕНИ го datetime-local блокот */}
+<div>
+  <label className="field-label">Датум и час на почеток *</label>
+  <p className="text-xs text-ink-muted mb-1.5">Аукцијата ќе биде најавена и ќе почне во избраното време</p>
+  <div className="flex gap-2 max-w-xs">
+    <input
+      type="date"
+      min={new Date().toISOString().slice(0, 10)}
+      value={form.startDate ? form.startDate.slice(0, 10) : ''}
+      onChange={e => {
+        const time = form.startDate ? form.startDate.slice(11, 16) : '12:00'
+        set('startDate', `${e.target.value}T${time}`)
+      }}
+      className={`field-input flex-1 ${errors.startDate ? 'field-error' : ''}`}
+    />
+    <input
+      type="time"
+      value={form.startDate ? form.startDate.slice(11, 16) : '12:00'}
+      onChange={e => {
+        const date = form.startDate ? form.startDate.slice(0, 10) : new Date().toISOString().slice(0, 10)
+        set('startDate', `${date}T${e.target.value}`)
+      }}
+      className={`field-input w-28 ${errors.startDate ? 'field-error' : ''}`}
+    />
+  </div>
+  {errors.startDate && <p className="error-msg">{errors.startDate}</p>}
+</div>
 
             {/* Duration in minutes */}
             <div>

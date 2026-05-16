@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Search, SlidersHorizontal } from 'lucide-react'
 import AuctionCard from '../components/ui/AuctionCard'
-import { useAuctions } from '../hooks/useAuctions'
+import { useAuctions } from '../hooks/AuctionsContext'
 import { CATEGORIES, SORT_OPTIONS } from '../lib/mockData'
 
 export default function Home() {
