@@ -4,9 +4,23 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        display: ['"Cormorant Garamond"', 'Georgia', 'serif'],
-        body:    ['"DM Sans"', 'sans-serif'],
-        mono:    ['"DM Mono"', 'monospace'],
+        display: ['"Playfair Display"', 'Georgia', 'serif'],
+        body:    ['"Source Sans 3"', 'sans-serif'],
+        serif:   ['"Lora"', 'Georgia', 'serif'],
+        mono:    ['monospace'],
+      },
+      fontSize: {
+        // Поголеми базни фонтови низ целата апп
+        xs:   ['0.8rem',  { lineHeight: '1.5' }],
+        sm:   ['0.95rem', { lineHeight: '1.6' }],
+        base: ['1.05rem', { lineHeight: '1.7' }],
+        lg:   ['1.2rem',  { lineHeight: '1.6' }],
+        xl:   ['1.35rem', { lineHeight: '1.5' }],
+        '2xl':['1.6rem',  { lineHeight: '1.3' }],
+        '3xl':['2rem',    { lineHeight: '1.2' }],
+        '4xl':['2.5rem',  { lineHeight: '1.1' }],
+        '5xl':['3.2rem',  { lineHeight: '1.05' }],
+        '6xl':['4rem',    { lineHeight: '1' }],
       },
       colors: {
         ink:       { DEFAULT: '#1a1612', soft: '#4a4540', muted: '#8a8480' },

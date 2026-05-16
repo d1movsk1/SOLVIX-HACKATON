@@ -1,135 +1,211 @@
 import { useState } from 'react'
-import { X, Wallet, ExternalLink, CheckCircle } from 'lucide-react'
+import { X, Wallet, ExternalLink, CheckCircle, AlertCircle, ShieldCheck } from 'lucide-react'
 import { explorerUrl } from '../../lib/solana'
 
-export default function BidModal({ auction, onClose, onBid, connected, onConnect }) {
-  const [amount, setAmount] = useState(auction.currentBid + 5)
-  const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState(null)
+// Чекори за прогрес
+const STEPS = [
+  { n: 1, label: 'Поврзи паричник' },
+  { n: 2, label: 'Постави понуда'  },
+  { n: 3, label: 'Чекај завршување' },
+  { n: 4, label: 'Добиј предметот' },
+]
 
-  const minBid = auction.currentBid + 1
+export default function BidModal({ auction, onClose, onBid, connected, onConnect }) {
+  const [amount, setAmount]   = useState(auction.currentBid + 5)
+  const [loading, setLoading] = useState(false)
+  const [result, setResult]   = useState(null)
+
+  const minBid    = auction.currentBid + 1
+  const currentStep = !connected ? 1 : result?.success ? 3 : 2
 
   async function handleBid() {
-  if (amount < minBid) return
-  setLoading(true)
-  const res = await onBid(auction.id, amount)
-  setResult(res)
-  setLoading(false)
-}
+    if (amount < minBid) return
+    setLoading(true)
+    const res = await onBid(auction.id, amount)
+    setResult(res)
+    setLoading(false)
+  }
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-ink/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-6"
+      className="fixed inset-0 z-50 bg-ink/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-6"
       onClick={e => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-parchment w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-modal p-6 sm:p-8 relative max-h-[95vh] overflow-y-auto">
+      <div className="bg-parchment w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-modal relative max-h-[95vh] overflow-y-auto">
 
-        {/* Drag handle (mobile) */}
-        <div className="sm:hidden w-10 h-1 bg-parchment-3 rounded-full mx-auto mb-5" />
+        {/* Drag handle мобилно */}
+        <div className="sm:hidden w-12 h-1.5 bg-parchment-3 rounded-full mx-auto mt-4 mb-2" />
 
-        <button
-          onClick={onClose}
-          className="absolute top-5 right-5 p-1.5 rounded-lg text-ink-muted hover:bg-parchment-2 transition-colors"
-        >
-          <X size={18} />
-        </button>
+        {/* Header */}
+        <div className="px-6 pt-4 pb-4 border-b border-parchment-2">
+          <button
+            onClick={onClose}
+            className="absolute top-5 right-5 p-2 rounded-xl text-ink-muted hover:bg-parchment-2 transition-colors"
+          >
+            <X size={20} />
+          </button>
+          <h2 className="font-display text-2xl font-semibold text-ink">Постави понуда</h2>
+          <p className="text-sm text-ink-muted mt-0.5 pr-8">{auction.title}</p>
+        </div>
 
-        <h2 className="font-display text-2xl font-medium mb-1">Постави понуда</h2>
-        <p className="text-sm text-ink-muted mb-6 truncate">{auction.title}</p>
-
-        {result ? (
-          /* Success */
-          <div className="flex flex-col items-center gap-4 py-4 text-center">
-            <div className="w-16 h-16 rounded-full bg-riznica-green/10 flex items-center justify-center">
-              <CheckCircle size={32} strokeWidth={1.5} className="text-riznica-green" />
-            </div>
-            <div>
-              <p className="font-display text-xl font-medium mb-1">Понудата е поставена!</p>
-              <p className="text-sm text-ink-muted">{amount} USDC заклучени во escrow</p>
-            </div>
-            {result.signature && (
-              <a
-                href={explorerUrl(result.signature)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 font-mono text-xs text-gold-dim hover:text-gold underline"
-              >
-                Погледни на Explorer <ExternalLink size={11} />
-              </a>
-            )}
-            <button onClick={onClose} className="btn-primary mt-2">Затвори</button>
-          </div>
-        ) : (
-          <>
-            {/* Current bid */}
-            <div className="flex items-center justify-between bg-parchment-2 rounded-xl px-4 py-3 mb-5">
-              <span className="text-xs text-ink-muted uppercase tracking-widest">Тековна понуда</span>
-              <span className="font-display text-xl font-semibold">{auction.currentBid} USDC</span>
-            </div>
-
-            {/* Amount picker */}
-            <div className="mb-5">
-              <label className="field-label">Твојата понуда (USDC)</label>
-              <div className="flex items-center border border-parchment-3 rounded-xl overflow-hidden bg-white">
-                <button
-                  onClick={() => setAmount(a => Math.max(minBid, a - 5))}
-                  className="px-4 h-12 bg-parchment-2 text-ink-soft text-lg hover:bg-parchment-3 transition-colors flex-shrink-0"
-                >
-                  −
-                </button>
-                <input
-                  type="number"
-                  value={amount}
-                  min={minBid}
-                  onChange={e => setAmount(Number(e.target.value))}
-                  className="flex-1 h-12 text-center font-display text-2xl font-medium bg-transparent outline-none text-ink"
-                />
-                <button
-                  onClick={() => setAmount(a => a + 5)}
-                  className="px-4 h-12 bg-parchment-2 text-ink-soft text-lg hover:bg-parchment-3 transition-colors flex-shrink-0"
-                >
-                  +
-                </button>
-              </div>
-              {amount < minBid && (
-                <p className="error-msg">Минимална понуда: {minBid} USDC</p>
-              )}
-            </div>
-
-            {/* Summary */}
-            <div className="border border-parchment-3 rounded-xl divide-y divide-parchment-3 mb-5 text-sm">
-              {[
-                ['Понудуваш', `${amount} USDC`],
-                ['Escrow', 'Заклучено до крај на аукција'],
-                ['NFT', 'Мintира за победникот'],
-              ].map(([k, v]) => (
-                <div key={k} className="flex justify-between px-4 py-2.5 text-ink-soft">
-                  <span>{k}</span>
-                  <span className="font-medium text-ink">{v}</span>
+        {/* Прогрес чекори */}
+        <div className="px-6 py-4 border-b border-parchment-2">
+          <div className="flex items-center justify-between">
+            {STEPS.map((s, i) => (
+              <div key={s.n} className="flex items-center">
+                <div className="flex flex-col items-center gap-1">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all
+                    ${s.n <= currentStep
+                      ? 'bg-ink text-parchment'
+                      : 'bg-parchment-2 text-ink-muted border border-parchment-3'
+                    }`}>
+                    {s.n < currentStep ? '✓' : s.n}
+                  </div>
+                  <span className={`text-xs font-medium hidden sm:block text-center leading-tight max-w-[60px]
+                    ${s.n <= currentStep ? 'text-ink-soft' : 'text-ink-muted'}`}>
+                    {s.label}
+                  </span>
                 </div>
-              ))}
+                {i < STEPS.length - 1 && (
+                  <div className={`h-0.5 w-8 sm:w-12 mx-1 mb-4 sm:mb-5 rounded transition-all
+                    ${s.n < currentStep ? 'bg-ink' : 'bg-parchment-3'}`} />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-6">
+          {/* Success state */}
+          {result?.success && (
+            <div className="flex flex-col items-center gap-5 py-4 text-center">
+              <div className="w-20 h-20 rounded-full bg-riznica-green/10 flex items-center justify-center">
+                <CheckCircle size={40} strokeWidth={1.5} className="text-riznica-green" />
+              </div>
+              <div>
+                <p className="font-display text-2xl font-semibold mb-2">Понудата е поставена!</p>
+                <p className="text-base text-ink-muted">
+                  <strong className="text-ink">{amount} $ (USDC)</strong> се чуваат безбедно до крај на аукцијата.
+                </p>
+                <p className="text-sm text-ink-muted mt-1">
+                  Ако некој понуди повеќе, парите автоматски се враќаат назад кај тебе.
+                </p>
+              </div>
+              {result.signature && (
+                <a href={explorerUrl(result.signature)} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-sm text-gold-dim hover:text-gold underline">
+                  Погледни го доказот за трансакцијата <ExternalLink size={13} />
+                </a>
+              )}
+              <button onClick={onClose} className="btn-primary mt-2">Готово</button>
             </div>
+          )}
 
-            {connected ? (
-              <button
-                onClick={handleBid}
-                disabled={loading || amount < minBid}
-                className="btn-primary mb-3"
-              >
-                {loading ? 'Потпишување…' : `Понуди ${amount} USDC`}
-              </button>
-            ) : (
-              <button onClick={onConnect} className="btn-secondary mb-3">
-                <Wallet size={15} />
-                Поврзи паричник за да понудиш
-              </button>
-            )}
+          {/* Error state */}
+          {result && !result.success && (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-start gap-3 bg-red-50 border border-riznica-red/30 rounded-xl px-4 py-4">
+                <AlertCircle size={20} className="text-riznica-red flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-riznica-red mb-1">Нешто тргна наопаку</p>
+                  <p className="text-sm text-riznica-red/80">
+                    {result.error?.includes('User rejected')
+                      ? 'Ја откажа трансакцијата. Обиди се повторно.'
+                      : result.error?.includes('insufficient')
+                      ? 'Немаш доволно средства. Земи бесплатни USDC на faucet.circle.com'
+                      : result.error || 'Непозната грешка. Обиди се повторно.'}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setResult(null)} className="btn-primary">Обиди се повторно</button>
+              <button onClick={onClose} className="text-sm text-ink-muted hover:text-ink text-center py-2">Откажи</button>
+            </div>
+          )}
 
-            <p className="text-center font-mono text-xs text-ink-muted">
-              Девнет — нема вистинска вредност
-            </p>
-          </>
-        )}
+          {/* Bid form */}
+          {!result && (
+            <>
+              {/* Тековна понуда */}
+              <div className="flex items-center justify-between bg-parchment-2 rounded-xl px-5 py-4 mb-5">
+                <span className="text-sm font-semibold text-ink-soft uppercase tracking-wide">Тековна понуда</span>
+                <span className="font-display text-2xl font-bold">{auction.currentBid} <span className="text-base font-normal text-ink-muted">$</span></span>
+              </div>
+
+              {/* Избери сума */}
+              <div className="mb-5">
+                <label className="field-label">Твојата понуда (во американски долари)</label>
+                <div className="flex items-center border-2 border-parchment-3 rounded-xl overflow-hidden bg-white focus-within:border-ink-soft transition-colors">
+                  <button
+                    onClick={() => setAmount(a => Math.max(minBid, a - 5))}
+                    className="px-5 h-14 bg-parchment-2 text-ink-soft text-2xl hover:bg-parchment-3 transition-colors flex-shrink-0 font-light"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number" value={amount} min={minBid}
+                    onChange={e => setAmount(Number(e.target.value))}
+                    className="flex-1 h-14 text-center font-display text-3xl font-bold bg-transparent outline-none text-ink"
+                  />
+                  <button
+                    onClick={() => setAmount(a => a + 5)}
+                    className="px-5 h-14 bg-parchment-2 text-ink-soft text-2xl hover:bg-parchment-3 transition-colors flex-shrink-0 font-light"
+                  >
+                    +
+                  </button>
+                </div>
+                {amount < minBid && (
+                  <p className="error-msg mt-2">Минималната понуда е {minBid} $</p>
+                )}
+              </div>
+
+              {/* Резиме — без технички јазик */}
+              <div className="border border-parchment-3 rounded-xl divide-y divide-parchment-3 mb-5">
+                {[
+                  ['Понудуваш',          `${amount} $`],
+                  ['Парите се чуваат',   'Безбедно до крај на аукцијата'],
+                  ['Ако не победиш',     'Парите се враќаат автоматски'],
+                  ['Ако победиш',        'Добиваш предмет + дигитален сертификат'],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex justify-between px-4 py-3 text-sm">
+                    <span className="text-ink-muted">{k}</span>
+                    <span className="font-medium text-ink text-right max-w-[55%]">{v}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Безбедност badge */}
+              <div className="flex items-center gap-2 mb-5 text-sm text-riznica-green bg-riznica-green/5 border border-riznica-green/20 rounded-xl px-4 py-3">
+                <ShieldCheck size={16} className="flex-shrink-0" />
+                <span>Твојата понуда е заштитена со блокчејн технологија</span>
+              </div>
+
+              {/* Копче */}
+              {connected ? (
+                <button
+                  onClick={handleBid}
+                  disabled={loading || amount < minBid}
+                  className="btn-primary mb-3 text-lg py-4"
+                >
+                  {loading ? (
+                    <span className="flex items-center gap-3">
+                      <span className="w-5 h-5 border-2 border-parchment/30 border-t-parchment rounded-full animate-spin" />
+                      Потпишување…
+                    </span>
+                  ) : `Понуди ${amount} $`}
+                </button>
+              ) : (
+                <button onClick={onConnect} className="btn-primary mb-3 text-lg py-4">
+                  <Wallet size={18} />
+                  Поврзи паричник за да понудиш
+                </button>
+              )}
+
+              <p className="text-center text-xs text-ink-muted">
+                Ова е тест верзија · Нема вистински пари
+              </p>
+            </>
+          )}
+        </div>
       </div>
     </div>
   )
