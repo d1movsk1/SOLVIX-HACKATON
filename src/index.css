@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-parchment text-ink font-body font-light;
+    background-image:
+      radial-gradient(ellipse at 20% 0%, rgba(184,150,62,.07) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 100%, rgba(139,46,46,.04) 0%, transparent 60%);
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5 {
+    @apply font-display;
+  }
+
+  a {
+    @apply text-inherit no-underline;
+  }
+
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+  }
+
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { @apply bg-parchment-2; }
+  ::-webkit-scrollbar-thumb { @apply bg-parchment-3 rounded-full; }
+}
+
+@layer components {
+  .btn-primary {
+    @apply w-full py-3.5 px-6 bg-ink text-parchment rounded-xl font-body font-medium text-sm
+           transition-opacity hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed
+           flex items-center justify-center gap-2;
+  }
+
+  .btn-secondary {
+    @apply w-full py-3.5 px-6 bg-transparent text-ink border border-ink rounded-xl font-body text-sm
+           transition-colors hover:bg-parchment-2 flex items-center justify-center gap-2;
+  }
+
+  .btn-outline {
+    @apply px-4 py-2 rounded-lg border border-parchment-3 bg-parchment-2 text-ink-soft
+           text-sm transition-colors hover:bg-parchment-3 font-body;
+  }
+
+  .field-label {
+    @apply block text-xs font-medium uppercase tracking-widest text-ink-soft mb-1.5;
+  }
+
+  .field-input {
+    @apply w-full px-3.5 py-3 border border-parchment-3 rounded-xl bg-white text-ink
+           font-body text-sm outline-none transition-colors focus:border-ink-soft;
+  }
+
+  .field-error {
+    @apply border-riznica-red;
+  }
+
+  .error-msg {
+    @apply text-xs text-riznica-red mt-1;
+  }
+
+  .card-base {
+    @apply bg-white border border-parchment-3 rounded-2xl overflow-hidden
+           transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift;
+  }
+
+  .tag {
+    @apply font-mono text-xs tracking-widest uppercase px-2.5 py-1 rounded-full;
+  }
+
+  .devnet-badge {
+    @apply font-mono text-xs text-gold-dim bg-gold/10 border border-gold/20 px-2 py-0.5 rounded-full;
+  }
+
+  .section-eyebrow {
+    @apply font-mono text-xs tracking-widest uppercase text-gold-dim mb-4;
+  }
+}
