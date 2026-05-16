@@ -6,6 +6,7 @@ import { useAuctions } from '../hooks/useAuctions'
 import { listItem, uploadImage } from '../lib/solana'
 
 const CATEGORIES = ['Текстил', 'Антиквитети', 'Занаети', 'Фотографија', 'Народна носија', 'Друго']
+
 const DURATIONS = [
   { label: '24 часа', hours: 24 },
   { label: '3 дена',  hours: 72 },
@@ -40,10 +41,10 @@ export default function Sell() {
 
   function validate() {
     const errs = {}
-    if (!form.title.trim())        errs.title       = 'Внеси наслов'
-    if (!form.description.trim())  errs.description = 'Внеси опис'
-    if (!form.location.trim())     errs.location    = 'Внеси локација'
-    if (!form.startingBid || Number(form.startingBid) < 1) errs.startingBid = 'Минимум 1 USDC'
+    if (!form.title.trim())        errs.title       = 'Внеси наслов на предметот'
+    if (!form.description.trim())  errs.description = 'Внеси опис на предметот'
+    if (!form.location.trim())     errs.location    = 'Внеси локација (град, село)'
+    if (!form.startingBid || Number(form.startingBid) < 0) errs.startingBid = 'Внесете почетна цена (минимум 0 USDC)'
     if (!form.image)               errs.image       = 'Прикачи слика'
     return errs
   }
@@ -81,10 +82,10 @@ export default function Sell() {
     <div className="flex flex-col items-center justify-center min-h-[70vh] gap-5 px-4 text-center">
       <CheckCircle size={52} strokeWidth={1.5} className="text-riznica-green" />
       <div>
-        <h1 className="font-display text-3xl font-medium mb-2">Предметот е листан!</h1>
+        <h1 className="font-display text-3xl font-medium mb-2">Предметот е поставен!</h1>
         <p className="text-sm text-ink-soft leading-relaxed">
           Аукцијата е активна на Solana Devnet.<br />
-          NFT ќе биде мintиран за победникот.
+          NFT ќе биде мint-иран за корисникот со победничка понуда.
         </p>
       </div>
       <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs mt-2">
@@ -109,13 +110,13 @@ export default function Sell() {
         <h1 className="font-display text-4xl font-medium mb-3">Постави предмет на аукција</h1>
         <p className="text-sm font-light text-ink-soft leading-relaxed">
           Твојот предмет ќе биде верифициран со NFT на Solana.
-          Купувачите понудуваат во USDC, заклучен во escrow до крај.
+          Купувачите поставуваат понуди во USDC, заклучен во escrow до крај.
         </p>
       </div>
 
       {!connected ? (
         <div className="flex flex-col items-center gap-4 py-16 border-2 border-dashed border-parchment-3 rounded-2xl text-center px-6">
-          <p className="text-ink-soft text-sm">За да листаш предмет, поврзи го Phantom паричникот.</p>
+          <p className="text-ink-soft text-sm">За да поставите предмет, поврзете го вашиот Phantom паричник.</p>
           <button onClick={connect} className="btn-primary max-w-xs">
             <Wallet size={15} />
             Поврзи паричник
@@ -252,3 +253,9 @@ export default function Sell() {
     </main>
   )
 }
+
+/*
+<select id="cat" value={form.category} onChange={e => set('category', e.target.value)}
+ className="field-input">
+{CATEGORIES.map(c => <option key={c}>{c}</option>)}
+</select> */

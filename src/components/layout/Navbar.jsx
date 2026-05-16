@@ -51,7 +51,7 @@ export default function Navbar() {
                 onClick={disconnect}
                 className="text-xs text-ink-muted hover:text-riznica-red transition-colors ml-1"
               >
-                Исклучи
+                Прекини
               </button>
             </div>
           ) : (
@@ -94,7 +94,7 @@ export default function Navbar() {
                   onClick={() => { disconnect(); setMenuOpen(false) }}
                   className="text-xs text-ink-muted hover:text-riznica-red"
                 >
-                  Исклучи
+                  Прекини
                 </button>
               </div>
             ) : (

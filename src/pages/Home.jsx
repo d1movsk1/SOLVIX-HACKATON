@@ -33,11 +33,11 @@ export default function Home() {
         <p className="section-eyebrow">Аукции на блокчејн</p>
         <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-medium leading-[1.05] text-ink mb-4">
           Секој предмет<br />
-          <em className="italic text-gold">носи приказна.</em>
+          <em className="italic text-gold">има своја приказна.</em>
         </h1>
         <p className="text-sm sm:text-base font-light text-ink-soft leading-relaxed max-w-sm">
-          Автентични рачно изработени предмети од Македонија.
-          Секоја продажба верифицирана со NFT на Solana.
+          Автентични рачно изработени предмети со потекло од Македонија.
+          Секоја продажба е верифицирана со NFT на Solana.
         </p>
       </section>
 
