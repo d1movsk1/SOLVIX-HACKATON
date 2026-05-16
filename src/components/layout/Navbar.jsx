@@ -33,13 +33,12 @@ export default function Navbar() {
         {/* Logo */}
         <Link to="/" className="flex items-baseline gap-2 flex-shrink-0">
           <span className="font-display text-2xl font-semibold tracking-tight text-ink">Ризница</span>
-          <span className="devnet-badge">devnet</span>
         </Link>
 
         {/* Desktop nav */}
         <nav className="hidden sm:flex items-center gap-1 flex-1">
           {navLink('/', 'Аукции', Archive)}
-          {navLink('/sell', 'Листај', Plus)}
+          {navLink('/sell', 'Постави предмет', Plus)}
         </nav>
 
         {/* Wallet — desktop */}
@@ -82,7 +81,7 @@ export default function Navbar() {
       {menuOpen && (
         <div className="sm:hidden border-t border-parchment-3 bg-parchment px-4 py-4 flex flex-col gap-2">
           {navLink('/', 'Аукции', Archive)}
-          {navLink('/sell', 'Листај', Plus)}
+          {navLink('/sell', 'Постави предмет', Plus)}
 
           <div className="mt-2 pt-3 border-t border-parchment-3">
             {connected ? (

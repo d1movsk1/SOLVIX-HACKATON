@@ -106,7 +106,7 @@ export default function Sell() {
       </Link>
 
       <div className="mb-8">
-        <h1 className="font-display text-4xl font-medium mb-3">Листај предмет</h1>
+        <h1 className="font-display text-4xl font-medium mb-3">Постави предмет на аукција</h1>
         <p className="text-sm font-light text-ink-soft leading-relaxed">
           Твојот предмет ќе биде верифициран со NFT на Solana.
           Купувачите понудуваат во USDC, заклучен во escrow до крај.
@@ -197,7 +197,7 @@ export default function Sell() {
               <label className="field-label" htmlFor="bid">Почетна цена (USDC) *</label>
               <div className="relative">
                 <input
-                  id="bid" type="number" min="1" placeholder="0"
+                  id="bid" type="number" min="0" placeholder="0"
                   value={form.startingBid}
                   onChange={e => set('startingBid', e.target.value)}
                   className={`field-input pr-16 ${errors.startingBid ? 'field-error' : ''}`}
@@ -245,7 +245,7 @@ export default function Sell() {
           </div>
 
           <button type="submit" disabled={loading} className="btn-primary">
-            {loading ? 'Објавување…' : 'Листај на аукција'}
+            {loading ? 'Објавување…' : 'Постави на аукција'}
           </button>
         </form>
       )}
