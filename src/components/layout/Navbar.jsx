@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Wallet, Plus, Archive, Menu, X } from 'lucide-react'
+import { Wallet, Plus, Archive, Menu, X, User } from 'lucide-react'
 import { useWallet } from '../../hooks/WalletContext'
 
 export default function Navbar() {
@@ -33,13 +33,14 @@ export default function Navbar() {
         {/* Logo */}
         <Link to="/" className="flex items-baseline gap-2 flex-shrink-0">
           <span className="font-display text-2xl font-semibold tracking-tight text-ink">Ризница</span>
-          
         </Link>
 
         {/* Desktop nav */}
         <nav className="hidden sm:flex items-center gap-1 flex-1">
           {navLink('/', 'Аукции', Archive)}
           {navLink('/sell', 'Листај', Plus)}
+          {/* НОВО — се прикажува само кога е поврзан */}
+          {connected && navLink('/my-auctions', 'Мои аукции', User)}
         </nav>
 
         {/* Wallet — desktop */}
@@ -83,6 +84,7 @@ export default function Navbar() {
         <div className="sm:hidden border-t border-parchment-3 bg-parchment px-4 py-4 flex flex-col gap-2">
           {navLink('/', 'Аукции', Archive)}
           {navLink('/sell', 'Листај', Plus)}
+          {connected && navLink('/my-auctions', 'Мои аукции', User)}
 
           <div className="mt-2 pt-3 border-t border-parchment-3">
             {connected ? (
