@@ -1,0 +1,112 @@
+{
+  "version": "0.1.0",
+  "name": "riznica_program",
+
+  "metadata": {
+    "address": "9qxFLefPHgt1CNBkGRR3SXSno51hLgzEEvoysxUe5Uk5"
+  },
+
+  "instructions": [
+    {
+      "name": "listItem",
+      "accounts": [
+        { "name": "auction", "isMut": true, "isSigner": false },
+        { "name": "seller", "isMut": true, "isSigner": true },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "title", "type": "string" },
+        { "name": "description", "type": "string" },
+        { "name": "imageUri", "type": "string" },
+        { "name": "startingBid", "type": "u64" },
+        { "name": "durationSeconds", "type": "i64" }
+      ]
+    },
+    {
+      "name": "placeBid",
+      "accounts": [
+        { "name": "auction", "isMut": true, "isSigner": false },
+        { "name": "bidder", "isMut": true, "isSigner": true },
+        { "name": "bidderTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "prevBidderTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "escrowTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "amount", "type": "u64" }
+      ]
+    },
+    {
+      "name": "endAuction",
+      "accounts": [
+        { "name": "auction", "isMut": true, "isSigner": false },
+        { "name": "escrowTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "sellerTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": []
+    }
+  ],
+
+  "accounts": [
+    {
+      "name": "auction",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "seller", "type": "publicKey" },
+          { "name": "title", "type": "string" },
+          { "name": "description", "type": "string" },
+          { "name": "imageUri", "type": "string" },
+          { "name": "startingBid", "type": "u64" },
+          { "name": "currentBid", "type": "u64" },
+          { "name": "currentBidder", "type": "publicKey" },
+          { "name": "endsAt", "type": "i64" },
+          { "name": "ended", "type": "bool" },
+          { "name": "nftMinted", "type": "bool" },
+          { "name": "bump", "type": "u8" }
+        ]
+      }
+    }
+  ],
+
+  "events": [
+    {
+      "name": "AuctionCreated",
+      "fields": [
+        { "name": "auction", "type": "publicKey", "index": false },
+        { "name": "seller", "type": "publicKey", "index": false },
+        { "name": "title", "type": "string", "index": false },
+        { "name": "endsAt", "type": "i64", "index": false }
+      ]
+    },
+    {
+      "name": "BidPlaced",
+      "fields": [
+        { "name": "auction", "type": "publicKey", "index": false },
+        { "name": "bidder", "type": "publicKey", "index": false },
+        { "name": "amount", "type": "u64", "index": false }
+      ]
+    },
+    {
+      "name": "AuctionFinished",
+      "fields": [
+        { "name": "auction", "type": "publicKey", "index": false },
+        { "name": "winner", "type": "publicKey", "index": false },
+        { "name": "amount", "type": "u64", "index": false }
+      ]
+    }
+  ],
+
+  "errors": [
+    { "code": 6000, "name": "TitleTooLong", "msg": "Насловот е подолг од 100 знаци" },
+    { "code": 6001, "name": "DescTooLong", "msg": "Описот е подолг од 500 знаци" },
+    { "code": 6002, "name": "InvalidBid", "msg": "Почетната понуда мора да е > 0" },
+    { "code": 6003, "name": "InvalidDuration", "msg": "Траењето мора да е > 0" },
+    { "code": 6004, "name": "AuctionEnded", "msg": "Аукцијата е веќе завршена" },
+    { "code": 6005, "name": "AuctionNotExpired", "msg": "Аукцијата сè уште не е завршена" },
+    { "code": 6006, "name": "AuctionExpired", "msg": "Аукцијата истече" },
+    { "code": 6007, "name": "BidTooLow", "msg": "Понудата мора да е поголема од тековната" },
+    { "code": 6008, "name": "SellerCannotBid", "msg": "Продавачот не може да понудува" }
+  ]
+}
