@@ -223,5 +223,7 @@ const HIDDEN_AUCTIONS = new Set([
   'BMLgnHQSv42zR4DDsizAecJ4MFEnzNky97icRp2iMbhL',
   'Em9Nw6tr8zECAsNAtVJwXpLg5DfapztbrJxTnzoGAuG7',
   '9FjjXwqJyQ71QrGjqEJXwkpwrASbtQ9eBxiaZjZLQqE6',
-  'A12t4FzUFRFRMy4AjLtrd291isaBQNoD1pBNEwkFyv9N'
+  'A12t4FzUFRFRMy4AjLtrd291isaBQNoD1pBNEwkFyv9N',
+  '4w5R5XzSjuf6KD1y3aUpa7zgA1jFXvkqpMQuWocSJkka',
+  'BRUfKxMGRFTE9urT3x34FXxD1xqraGedxr7dz8y1LM46'
 ])

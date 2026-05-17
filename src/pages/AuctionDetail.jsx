@@ -7,6 +7,7 @@ import Countdown from '../components/ui/Countdown'
 import BidModal from '../components/ui/BidModal'
 import { useAuctions } from '../hooks/useAuctions'
 import { endAuction, explorerUrl } from '../lib/solana'
+import { mintNFT } from '../lib/nft'
 
 function TimeLeft({ endsAt }) {
   const ms = endsAt - Date.now()
@@ -30,9 +31,12 @@ export default function AuctionDetail() {
   const [ownerAction, setOwnerAction] = useState(null)
   const [ownerError, setOwnerError]   = useState(null)
   const [ownerTx, setOwnerTx]         = useState(null)
+  const [nftMinting, setNftMinting]   = useState(false)
+  const [nftMint, setNftMint]         = useState(null)
+  const [nftError, setNftError]       = useState(null)
 
   const solanaWallet = wallets.find(w => w.chainType === 'solana')
-  const myAddr       = solanaWallet?.address || ''
+  const myAddr       = window.solana?.publicKey?.toString() || solanaWallet?.address || ''
 
   const auction = auctions.find(a => a.id === id)
 
@@ -62,11 +66,30 @@ export default function AuctionDetail() {
   async function handleEndAuction() {
     setOwnerAction('ending')
     setOwnerError(null)
+
+    const phantom = window.solana?.isPhantom ? window.solana : null
+    if (!phantom) {
+      setOwnerError('Инсталирај го Phantom паричникот.')
+      setOwnerAction(null)
+      return
+    }
+
+    if (!phantom.isConnected) {
+      try { await phantom.connect() }
+      catch { setOwnerError('Поврзи го Phantom.'); setOwnerAction(null); return }
+    }
+
+    const walletAdapter = {
+      publicKey:           phantom.publicKey,
+      signTransaction:     (tx) => phantom.signTransaction(tx),
+      signAllTransactions: (txs) => phantom.signAllTransactions(txs),
+    }
+
     try {
       const result = await endAuction({
         auctionId:    id,
-        sellerWallet: myAddr,
-        wallet:       solanaWallet,
+        sellerWallet: phantom.publicKey.toString(),
+        wallet:       walletAdapter,
       })
       setOwnerTx(result.signature)
       setOwnerAction('done')
@@ -75,6 +98,29 @@ export default function AuctionDetail() {
         ? 'Ја откажа трансакцијата.'
         : e.message || 'Грешка при затворање')
       setOwnerAction(null)
+    }
+  }
+
+  async function handleMintNFT() {
+    setNftMinting(true)
+    setNftError(null)
+    try {
+      const phantom = window.solana
+      if (!phantom?.isConnected) await phantom.connect()
+
+      const result = await mintNFT({
+        title:       auction.title,
+        description: auction.description,
+        imageUri:    auction.image,
+        winner:      auction.currentBidder,
+        phantom,
+      })
+      setNftMint(result.mint)
+    } catch (e) {
+      console.error('mintNFT error:', e)
+      setNftError(e.message || 'Грешка при минтирање.')
+    } finally {
+      setNftMinting(false)
     }
   }
 
@@ -89,6 +135,7 @@ export default function AuctionDetail() {
 
         {/* ── LEFT ── */}
         <div className="flex flex-col gap-5">
+
           {/* Image */}
           <div className="relative rounded-2xl overflow-hidden aspect-[4/3] bg-parchment-2">
             <img src={imgSrc} alt={auction.title} className="w-full h-full object-cover"
@@ -115,7 +162,7 @@ export default function AuctionDetail() {
                 Дигитален сертификат за автентичност
               </p>
               <p className="text-sm text-ink-muted leading-relaxed">
-                {auction.nftMinted
+                {auction.nftMinted || nftMint
                   ? 'Сертификатот е издаден и зачуван засекогаш.'
                   : 'Победникот добива дигитален сертификат за оригиналност и сопственост.'}
               </p>
@@ -142,13 +189,14 @@ export default function AuctionDetail() {
             </div>
           </div>
 
-          {/* ── OWNER ANALYTICS ── */}
+          {/* ── OWNER PANEL ── */}
           {isOwner && (
             <div className="border-2 border-gold/30 bg-gold/5 rounded-xl p-5 flex flex-col gap-4">
               <p className="text-sm font-bold uppercase tracking-wider text-gold-dim flex items-center gap-2">
                 <BarChart2 size={15} /> Аналитики за твојот оглас
               </p>
 
+              {/* Stats */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-white/50 rounded-xl p-3 text-center">
                   <p className="text-2xl font-display font-bold text-ink">{auction.bids}</p>
@@ -173,12 +221,18 @@ export default function AuctionDetail() {
               {auction.currentBidder && (
                 <div className="bg-white/50 rounded-xl px-4 py-3 text-sm">
                   <p className="text-ink-muted mb-0.5">Тековен купувач</p>
-                  <p className="font-mono text-ink-soft text-xs">{auction.currentBidder.slice(0,8)}...</p>
+                  <p className="font-mono text-ink-soft text-xs">{auction.currentBidder.slice(0, 8)}...</p>
+                </div>
+              )}
+
+              {ownerError && (
+                <div className="flex items-center gap-2 text-xs text-riznica-red bg-red-50 rounded-lg px-3 py-2">
+                  <AlertCircle size={13} /> {ownerError}
                 </div>
               )}
 
               {ownerAction === 'done' ? (
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-2 text-sm text-riznica-green font-medium">
                     <CheckCircle size={16} /> Аукцијата е затворена успешно.
                   </div>
@@ -188,14 +242,47 @@ export default function AuctionDetail() {
                       Погледни трансакција <ExternalLink size={11} />
                     </a>
                   )}
+
+                  {/* NFT минтирање */}
+                  {auction.currentBidder && !nftMint && !auction.nftMinted && (
+                    <div className="flex flex-col gap-2 pt-2 border-t border-gold/20">
+                      <p className="text-xs text-ink-muted">
+                        Издај дигитален сертификат на победникот:
+                      </p>
+                      {nftError && (
+                        <div className="flex items-center gap-2 text-xs text-riznica-red bg-red-50 rounded-lg px-3 py-2">
+                          <AlertCircle size={13} /> {nftError}
+                        </div>
+                      )}
+                      <button
+                        onClick={handleMintNFT}
+                        disabled={nftMinting}
+                        className="flex items-center justify-center gap-2 text-sm px-4 py-3 rounded-xl
+                                   border border-gold/30 text-gold-dim hover:bg-gold/5
+                                   transition-colors disabled:opacity-50 font-medium"
+                      >
+                        {nftMinting ? (
+                          <span className="flex items-center gap-2">
+                            <span className="w-4 h-4 border-2 border-gold/30 border-t-gold-dim rounded-full animate-spin" />
+                            Минтирање…
+                          </span>
+                        ) : '🏆 Издај дигитален сертификат'}
+                      </button>
+                    </div>
+                  )}
+
+                  {(nftMint || auction.nftMinted) && (
+                    <a
+                      href={nftMint ? `https://explorer.solana.com/address/${nftMint}?cluster=devnet` : '#'}
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-sm text-riznica-green hover:underline"
+                    >
+                      <CheckCircle size={14} /> Сертификатот е издаден
+                    </a>
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">
-                  {ownerError && (
-                    <div className="flex items-center gap-2 text-xs text-riznica-red bg-red-50 rounded-lg px-3 py-2">
-                      <AlertCircle size={13} /> {ownerError}
-                    </div>
-                  )}
                   {!isEnded ? (
                     <button onClick={handleEndAuction} disabled={ownerAction === 'ending'}
                       className="flex items-center justify-center gap-2 text-sm px-4 py-3 rounded-xl
@@ -297,7 +384,7 @@ export default function AuctionDetail() {
             </div>
           </div>
 
-          {/* Kako funkcjonira — samo za kupuvaci */}
+          {/* Kako funkcjonira */}
           {!isOwner && (
             <div className="bg-white/40 rounded-xl p-4">
               <p className="text-sm font-bold uppercase tracking-wider text-ink-soft mb-3 flex items-center gap-2">
